@@ -1,0 +1,19 @@
+name: Restore Maven cache from S3
+description: Downloads a Maven cache archive from S3 and unpacks it to ~/.m2/repository
+inputs:
+  bucket:
+    required: true
+    description: S3 bucket
+  prefix:
+    required: true
+    description: S3 prefix
+
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      run: |
+        bash "${{ github.action_path }}/restore.sh" \
+          "${{ inputs.bucket }}" \
+          "${{ inputs.prefix }}"

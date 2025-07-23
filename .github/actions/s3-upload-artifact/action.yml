@@ -1,0 +1,43 @@
+name: Upload Artifact to S3
+
+inputs:
+  name:
+    description: Artifact name
+    required: true
+  bucket:
+    description: S3 bucket name
+    required: true
+  prefix:
+    description: Path prefix in bucket
+    required: true
+  paths:
+    description: Multiline paths (like in upload-artifact)
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare files
+      shell: bash
+      run: |
+        mkdir -p /tmp/artifacts/${{ inputs.name }}
+        while read -r line; do
+          for file in $line; do
+            echo "Copying $file"
+            if [[ -f "$file" ]]; then
+              dest="/tmp/artifacts/${{ inputs.name }}/$(dirname "$file")"
+              mkdir -p "$dest"
+              cp "$file" "$dest/"
+            fi
+          done
+        done <<< "${{ inputs.paths }}"
+
+    - name: Archive artifact
+      shell: bash
+      run: |
+        tar -czf /tmp/${{ inputs.name }}.tar.gz -C /tmp/artifacts/${{ inputs.name }} .
+
+    - name: Upload to S3
+      shell: bash
+      run: |
+        aws s3 cp /tmp/${{ inputs.name }}.tar.gz s3://${{ inputs.bucket }}/artifacts/${{ inputs.prefix }}/${{ inputs.name }}.tar.gz

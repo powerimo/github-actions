@@ -1,0 +1,27 @@
+name: Download Artifact from S3
+author: andev
+
+inputs:
+  name:
+    required: true
+    description: Artifact name
+  bucket:
+    required: true
+    description: S3 bucket name
+  prefix:
+    required: true
+    description: Path prefix in bucket
+  destination:
+    required: false
+    default: "./"
+    description: Local path for downloading
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download
+      shell: bash
+      run: |
+        aws s3 cp s3://${{ inputs.bucket }}/artifacts/${{ inputs.prefix }}/${{ inputs.name }}.tar.gz artifact.tar.gz
+        mkdir -p ${{ inputs.destination }}
+        tar -xzf artifact.tar.gz -C ${{ inputs.destination }}
