@@ -1,5 +1,6 @@
 name: Download Artifact from S3
 author: andev
+description: Downloads a tar.gz artifact from S3 and extracts it to a local destination
 
 inputs:
   name:
@@ -22,6 +23,7 @@ runs:
     - name: Download
       shell: bash
       run: |
-        aws s3 cp s3://${{ inputs.bucket }}/artifacts/${{ inputs.prefix }}/${{ inputs.name }}.tar.gz artifact.tar.gz
-        mkdir -p ${{ inputs.destination }}
-        tar -xzf artifact.tar.gz -C ${{ inputs.destination }}
+        aws s3 cp "s3://${{ inputs.bucket }}/artifacts/${{ inputs.prefix }}/${{ inputs.name }}.tar.gz" /tmp/artifact-${{ inputs.name }}.tar.gz
+        mkdir -p "${{ inputs.destination }}"
+        tar -xzf /tmp/artifact-${{ inputs.name }}.tar.gz -C "${{ inputs.destination }}"
+        rm -f /tmp/artifact-${{ inputs.name }}.tar.gz
