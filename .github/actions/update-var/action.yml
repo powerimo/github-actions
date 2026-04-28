@@ -75,8 +75,19 @@ runs:
         BODY=$(jq -n --arg name "${VAR_NAME}" --arg value "${VAR_VALUE}" \
           '{"name": $name, "value": $value}')
 
-        curl -sf -X PUT \
+        TMPFILE=$(mktemp)
+        HTTP_CODE=$(curl -s -o "$TMPFILE" -w "%{http_code}" -X PUT \
           -H "X-Api-Key: ${API_KEY}" \
           -H "Content-Type: application/json" \
           -d "${BODY}" \
-          "${URL}"
+          "${URL}")
+        RESPONSE=$(cat "$TMPFILE")
+        rm -f "$TMPFILE"
+
+        echo "Response (HTTP ${HTTP_CODE}):"
+        echo "${RESPONSE}"
+
+        if [ "${HTTP_CODE}" -lt 200 ] || [ "${HTTP_CODE}" -ge 300 ]; then
+          echo "::error::HTTP request failed with status ${HTTP_CODE}"
+          exit 1
+        fi

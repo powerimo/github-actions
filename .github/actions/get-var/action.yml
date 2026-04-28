@@ -55,7 +55,19 @@ runs:
           done
         fi
 
-        RESPONSE=$(curl -sf -H "X-Api-Key: ${API_KEY}" "${URL}")
+        TMPFILE=$(mktemp)
+        HTTP_CODE=$(curl -s -o "$TMPFILE" -w "%{http_code}" \
+          -H "X-Api-Key: ${API_KEY}" "${URL}")
+        RESPONSE=$(cat "$TMPFILE")
+        rm -f "$TMPFILE"
+
+        echo "Response (HTTP ${HTTP_CODE}):"
+        echo "${RESPONSE}"
+
+        if [ "${HTTP_CODE}" -lt 200 ] || [ "${HTTP_CODE}" -ge 300 ]; then
+          echo "::error::HTTP request failed with status ${HTTP_CODE}"
+          exit 1
+        fi
 
         echo "value=$(echo "$RESPONSE" | jq -r '.value')" >> "$GITHUB_OUTPUT"
         echo "value_level=$(echo "$RESPONSE" | jq -r '.valueLevel')" >> "$GITHUB_OUTPUT"
