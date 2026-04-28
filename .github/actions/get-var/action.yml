@@ -1,0 +1,61 @@
+name: Get config variable
+description: Retrieves a variable value from Powerimo Config service by name via /v1/vars/named
+
+inputs:
+  api-url:
+    required: true
+    description: Base URL of the config API (e.g. https://app.powerimo.cloud/config)
+  api-key:
+    required: true
+    description: X-Api-Key value for authentication
+  var-name:
+    required: true
+    description: Variable name to retrieve
+  env:
+    required: false
+    description: Environment name filter (optional; omit to resolve at account level)
+  profile:
+    required: false
+    description: Application profile filter, comma-separated for multiple values (optional)
+
+outputs:
+  value:
+    description: The resolved variable value
+    value: ${{ steps.get.outputs.value }}
+  value-level:
+    description: Scope level where the value was resolved (ACCOUNT|ENVIRONMENT|APP|APP_ENVIRONMENT|APP_PROFILE)
+    value: ${{ steps.get.outputs.value_level }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: get
+      shell: bash
+      env:
+        API_KEY: ${{ inputs.api-key }}
+        API_URL: ${{ inputs.api-url }}
+        VAR_NAME: ${{ inputs.var-name }}
+        ENV_FILTER: ${{ inputs.env }}
+        PROFILE_FILTER: ${{ inputs.profile }}
+      run: |
+        set -e
+
+        URL="${API_URL}/v1/vars/named?var_name=${VAR_NAME}"
+
+        if [ -n "${ENV_FILTER}" ]; then
+          URL="${URL}&env=${ENV_FILTER}"
+        fi
+
+        if [ -n "${PROFILE_FILTER}" ]; then
+          IFS=',' read -ra PROFILES <<< "${PROFILE_FILTER}"
+          for p in "${PROFILES[@]}"; do
+            p="${p#"${p%%[![:space:]]*}"}"
+            p="${p%"${p##*[![:space:]]}"}"
+            [ -n "$p" ] && URL="${URL}&profile=${p}"
+          done
+        fi
+
+        RESPONSE=$(curl -sf -H "X-Api-Key: ${API_KEY}" "${URL}")
+
+        echo "value=$(echo "$RESPONSE" | jq -r '.value')" >> "$GITHUB_OUTPUT"
+        echo "value_level=$(echo "$RESPONSE" | jq -r '.valueLevel')" >> "$GITHUB_OUTPUT"

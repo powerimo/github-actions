@@ -1,0 +1,82 @@
+name: Update config variable
+description: Updates a variable value in Powerimo Config service at a given scope
+
+inputs:
+  api-url:
+    required: true
+    description: Base URL of the config API (e.g. https://app.powerimo.cloud/config)
+  api-key:
+    required: true
+    description: X-Api-Key value for authentication
+  account-id:
+    required: true
+    description: Account UUID
+  scope:
+    required: false
+    default: account
+    description: "Variable scope: account | env | app | app-env | app-profile"
+  var-name:
+    required: true
+    description: Variable name
+  value:
+    required: true
+    description: New variable value
+  env-name:
+    required: false
+    description: Environment name (required for scope env or app-env)
+  app-name:
+    required: false
+    description: Application name (required for scope app, app-env, or app-profile)
+  profile-name:
+    required: false
+    description: Profile name (required for scope app-profile)
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      env:
+        API_KEY: ${{ inputs.api-key }}
+        API_URL: ${{ inputs.api-url }}
+        ACCOUNT_ID: ${{ inputs.account-id }}
+        SCOPE: ${{ inputs.scope }}
+        VAR_NAME: ${{ inputs.var-name }}
+        VAR_VALUE: ${{ inputs.value }}
+        ENV_NAME: ${{ inputs.env-name }}
+        APP_NAME: ${{ inputs.app-name }}
+        PROFILE_NAME: ${{ inputs.profile-name }}
+      run: |
+        set -e
+
+        BASE="${API_URL}/v1/account/${ACCOUNT_ID}"
+
+        case "${SCOPE}" in
+          account)
+            URL="${BASE}/account-vars/${VAR_NAME}"
+            ;;
+          env)
+            URL="${BASE}/envs/${ENV_NAME}/vars/${VAR_NAME}"
+            ;;
+          app)
+            URL="${BASE}/apps/${APP_NAME}/vars/${VAR_NAME}"
+            ;;
+          app-env)
+            URL="${BASE}/apps/${APP_NAME}/envs/${ENV_NAME}/vars/${VAR_NAME}"
+            ;;
+          app-profile)
+            URL="${BASE}/apps/${APP_NAME}/profiles/${PROFILE_NAME}/vars/${VAR_NAME}"
+            ;;
+          *)
+            echo "::error::Unknown scope '${SCOPE}'. Valid values: account, env, app, app-env, app-profile"
+            exit 1
+            ;;
+        esac
+
+        BODY=$(jq -n --arg name "${VAR_NAME}" --arg value "${VAR_VALUE}" \
+          '{"name": $name, "value": $value}')
+
+        curl -sf -X PUT \
+          -H "X-Api-Key: ${API_KEY}" \
+          -H "Content-Type: application/json" \
+          -d "${BODY}" \
+          "${URL}"
