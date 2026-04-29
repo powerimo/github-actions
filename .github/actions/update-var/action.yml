@@ -33,6 +33,9 @@ inputs:
     required: false
     default: "true"
     description: "Update the variable if it already exists"
+  description:
+    required: false
+    description: Optional human-readable description of the variable
   ignore-rv:
     required: false
     default: "false"
@@ -58,6 +61,7 @@ runs:
         SCOPE: ${{ inputs.scope }}
         VAR_NAME: ${{ inputs.var-name }}
         VAR_VALUE: ${{ inputs.value }}
+        VAR_DESCRIPTION: ${{ inputs.description }}
         SECURITY_LEVEL: ${{ inputs.security-level }}
         CREATE_VAR: ${{ inputs.create }}
         UPDATE_VAR: ${{ inputs.update }}
@@ -95,11 +99,19 @@ runs:
         BODY=$(jq -n \
           --arg name "${VAR_NAME}" \
           --arg value "${VAR_VALUE}" \
+          --arg description "${VAR_DESCRIPTION}" \
           --arg sl "${SECURITY_LEVEL}" \
           --argjson create "${CREATE_VAR}" \
           --argjson update "${UPDATE_VAR}" \
           --argjson ignoreRv "${IGNORE_RV}" \
-          '{"name":$name,"value":$value,"securityLevel":$sl,"create":$create,"update":$update,"ignoreRv":$ignoreRv}')
+          '{
+            "name": $name,
+            "value": $value,
+            "securityLevel": $sl,
+            "create": $create,
+            "update": $update,
+            "ignoreRv": $ignoreRv
+          } + (if $description != "" then {"description": $description} else {} end)')
 
         TMPFILE=$(mktemp)
         HTTP_CODE=$(curl -s -o "$TMPFILE" -w "%{http_code}" -X POST \
