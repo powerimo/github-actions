@@ -44,9 +44,14 @@ Reference actions directly from this repo:
 
 **`get-var`** calls `GET /v1/vars/named` with query params `var_name`, `env`, and `profile` (comma-separated, expanded to multiple `&profile=` params). Response is `ActualVarDto` with fields `value` and `valueLevel`.
 
-**`update-var`** calls `PUT` on a scope-specific path and sends a JSON body:
-- `account` scope: `VarChangeRequest` — includes `securityLevel` (required), `create`, `ignoreRv`
-- Other scopes (`env`, `app`, `app-env`, `app-profile`): `VarDto` — includes `securityLevel` (required)
+**`update-var`** calls `POST` on the collection URL for each scope (variable name is in the body, not the URL path). All scopes use `VarChangeRequest` body: `name`, `value`, `securityLevel` (required), `create`, `update`, `ignoreRv`.
+
+Scope → collection URL:
+- `account` → `{BASE}/account-vars`
+- `env` → `{BASE}/envs/{envName}/vars`
+- `app` → `{BASE}/apps/{appName}/vars`
+- `app-env` → `{BASE}/apps/{appName}/envs/{envName}/vars`
+- `app-profile` → `{BASE}/apps/{appName}/profiles/{profileName}/vars`
 
 API schema reference: `https://qa.powerimo.cloud/config/v3/api-docs`
 

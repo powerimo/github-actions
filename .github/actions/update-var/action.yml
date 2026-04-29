@@ -28,11 +28,15 @@ inputs:
   create:
     required: false
     default: "false"
-    description: "Create the variable if it does not exist (account scope only)"
+    description: "Create the variable if it does not exist"
+  update:
+    required: false
+    default: "true"
+    description: "Update the variable if it already exists"
   ignore-rv:
     required: false
     default: "false"
-    description: "Skip optimistic locking revision check — use with caution (account scope only)"
+    description: "Skip optimistic locking revision check — use with caution"
   env-name:
     required: false
     description: Environment name (required for scope env or app-env)
@@ -56,6 +60,7 @@ runs:
         VAR_VALUE: ${{ inputs.value }}
         SECURITY_LEVEL: ${{ inputs.security-level }}
         CREATE_VAR: ${{ inputs.create }}
+        UPDATE_VAR: ${{ inputs.update }}
         IGNORE_RV: ${{ inputs.ignore-rv }}
         ENV_NAME: ${{ inputs.env-name }}
         APP_NAME: ${{ inputs.app-name }}
@@ -67,46 +72,19 @@ runs:
 
         case "${SCOPE}" in
           account)
-            URL="${BASE}/account-vars/${VAR_NAME}"
-            BODY=$(jq -n \
-              --arg name "${VAR_NAME}" \
-              --arg value "${VAR_VALUE}" \
-              --arg sl "${SECURITY_LEVEL}" \
-              --argjson create "${CREATE_VAR}" \
-              --argjson ignoreRv "${IGNORE_RV}" \
-              '{"name":$name,"value":$value,"securityLevel":$sl,"create":$create,"ignoreRv":$ignoreRv}')
+            URL="${BASE}/account-vars"
             ;;
           env)
-            URL="${BASE}/envs/${ENV_NAME}/vars/${VAR_NAME}"
-            BODY=$(jq -n \
-              --arg name "${VAR_NAME}" \
-              --arg value "${VAR_VALUE}" \
-              --arg sl "${SECURITY_LEVEL}" \
-              '{"name":$name,"value":$value,"securityLevel":$sl}')
+            URL="${BASE}/envs/${ENV_NAME}/vars"
             ;;
           app)
-            URL="${BASE}/apps/${APP_NAME}/vars/${VAR_NAME}"
-            BODY=$(jq -n \
-              --arg name "${VAR_NAME}" \
-              --arg value "${VAR_VALUE}" \
-              --arg sl "${SECURITY_LEVEL}" \
-              '{"name":$name,"value":$value,"securityLevel":$sl}')
+            URL="${BASE}/apps/${APP_NAME}/vars"
             ;;
           app-env)
-            URL="${BASE}/apps/${APP_NAME}/envs/${ENV_NAME}/vars/${VAR_NAME}"
-            BODY=$(jq -n \
-              --arg name "${VAR_NAME}" \
-              --arg value "${VAR_VALUE}" \
-              --arg sl "${SECURITY_LEVEL}" \
-              '{"name":$name,"value":$value,"securityLevel":$sl}')
+            URL="${BASE}/apps/${APP_NAME}/envs/${ENV_NAME}/vars"
             ;;
           app-profile)
-            URL="${BASE}/apps/${APP_NAME}/profiles/${PROFILE_NAME}/vars/${VAR_NAME}"
-            BODY=$(jq -n \
-              --arg name "${VAR_NAME}" \
-              --arg value "${VAR_VALUE}" \
-              --arg sl "${SECURITY_LEVEL}" \
-              '{"name":$name,"value":$value,"securityLevel":$sl}')
+            URL="${BASE}/apps/${APP_NAME}/profiles/${PROFILE_NAME}/vars"
             ;;
           *)
             echo "::error::Unknown scope '${SCOPE}'. Valid values: account, env, app, app-env, app-profile"
@@ -114,8 +92,17 @@ runs:
             ;;
         esac
 
+        BODY=$(jq -n \
+          --arg name "${VAR_NAME}" \
+          --arg value "${VAR_VALUE}" \
+          --arg sl "${SECURITY_LEVEL}" \
+          --argjson create "${CREATE_VAR}" \
+          --argjson update "${UPDATE_VAR}" \
+          --argjson ignoreRv "${IGNORE_RV}" \
+          '{"name":$name,"value":$value,"securityLevel":$sl,"create":$create,"update":$update,"ignoreRv":$ignoreRv}')
+
         TMPFILE=$(mktemp)
-        HTTP_CODE=$(curl -s -o "$TMPFILE" -w "%{http_code}" -X PUT \
+        HTTP_CODE=$(curl -s -o "$TMPFILE" -w "%{http_code}" -X POST \
           -H "X-Api-Key: ${API_KEY}" \
           -H "Content-Type: application/json" \
           -d "${BODY}" \

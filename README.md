@@ -178,8 +178,9 @@ Creates or updates a variable in the Powerimo Config service. Supports all varia
 | `value` | yes | — | New variable value |
 | `scope` | no | `account` | `account` \| `env` \| `app` \| `app-env` \| `app-profile` |
 | `security-level` | no | `PUBLIC` | `PUBLIC` \| `HIDDEN_BY_DEFAULT` \| `ENCRYPTED` |
-| `create` | no | `false` | Create the variable if it does not exist (account scope only) |
-| `ignore-rv` | no | `false` | Skip optimistic locking revision check (account scope only) |
+| `create` | no | `false` | Create the variable if it does not exist |
+| `update` | no | `true` | Update the variable if it already exists |
+| `ignore-rv` | no | `false` | Skip optimistic locking revision check — use with caution |
 | `env-name` | no | — | Environment name (required for `env` and `app-env` scopes) |
 | `app-name` | no | — | Application name (required for `app`, `app-env`, `app-profile` scopes) |
 | `profile-name` | no | — | Profile name (required for `app-profile` scope) |
