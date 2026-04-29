@@ -16,8 +16,10 @@ All actions live under `.github/actions/`:
 | `restore-cache-s3` | Downloads and extracts Maven cache from S3, with fallback from main cache to base cache |
 | `upload-artifact-s3` | Collects file paths, creates a `.tar.gz` archive, and uploads to S3 |
 | `download-artifact-s3` | Downloads a `.tar.gz` artifact from S3 and extracts it locally |
+| `get-var` | Retrieves a variable value from Powerimo Config service via `/v1/vars/named` |
+| `update-var` | Creates or updates a variable in Powerimo Config service at account/env/app/app-env/app-profile scope |
 
-## Usage in Workflows
+## Usage in Workflows/
 
 Reference actions directly from this repo:
 
@@ -34,12 +36,26 @@ Reference actions directly from this repo:
 - Base/fallback cache: `maven-cache/<prefix>/base.tar.gz`
 - Artifacts: `artifacts/<prefix>/<artifact-name>.tar.gz`
 
+## Powerimo Config Service Actions
+
+`get-var` and `update-var` interact with the Powerimo Config REST API (base path `/config`, e.g. `https://app.powerimo.cloud/config`).
+
+**Authentication:** `X-Api-Key` header.
+
+**`get-var`** calls `GET /v1/vars/named` with query params `var_name`, `env`, and `profile` (comma-separated, expanded to multiple `&profile=` params). Response is `ActualVarDto` with fields `value` and `valueLevel`.
+
+**`update-var`** calls `PUT` on a scope-specific path and sends a JSON body:
+- `account` scope: `VarChangeRequest` — includes `securityLevel` (required), `create`, `ignoreRv`
+- Other scopes (`env`, `app`, `app-env`, `app-profile`): `VarDto` — includes `securityLevel` (required)
+
+API schema reference: `https://qa.powerimo.cloud/config/v3/api-docs`
+
 ## Architecture Notes
 
 - All actions use `using: composite` — no Node.js or Docker runtime needed.
 - Cache actions with shell scripts (`save.sh`, `restore.sh`) use `set -e` for fail-fast behavior.
 - `restore-cache-s3` silently skips missing caches (`aws s3 cp ... || true`) so missing cache is not a workflow failure.
-- AWS credentials must be configured before calling any action (e.g., via `aws-actions/configure-aws-credentials`).
+- AWS credentials must be configured before calling any S3 action (e.g., via `aws-actions/configure-aws-credentials`).
 
 ## Adding or Modifying Actions
 

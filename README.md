@@ -4,7 +4,9 @@ Reusable GitHub Actions for storing and restoring Maven caches and build artifac
 
 ## Prerequisites
 
-All actions require AWS credentials to be configured before use. The recommended way is via [aws-actions/configure-aws-credentials](https://github.com/aws-actions/configure-aws-credentials):
+### S3 actions
+
+All S3 actions require AWS credentials to be configured before use. The recommended way is via [aws-actions/configure-aws-credentials](https://github.com/aws-actions/configure-aws-credentials):
 
 ```yaml
 - uses: aws-actions/configure-aws-credentials@v5
@@ -13,6 +15,10 @@ All actions require AWS credentials to be configured before use. The recommended
     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     aws-region: us-east-1
 ```
+
+### Config Service actions
+
+`get-var` and `update-var` require a Powerimo Config API URL and an API key secret. No AWS credentials needed.
 
 ## Actions
 
@@ -116,6 +122,94 @@ Downloads a `.tar.gz` artifact from S3 and extracts it to a local directory.
     bucket: my-ci-bucket
     prefix: my-project
     destination: ./dist
+```
+
+---
+
+### `get-var`
+
+Retrieves a variable value from the Powerimo Config service. Resolves at account level by default; optionally scoped to an environment and/or application profile.
+
+**Inputs**
+
+| Input | Required | Description |
+|---|---|---|
+| `api-url` | yes | Base URL of the Config API (e.g. `https://app.powerimo.cloud/config`) |
+| `api-key` | yes | `X-Api-Key` for authentication |
+| `var-name` | yes | Variable name to retrieve |
+| `env` | no | Environment name filter |
+| `profile` | no | Application profile filter, comma-separated for multiple values |
+
+**Outputs**
+
+| Output | Description |
+|---|---|
+| `value` | Resolved variable value |
+| `value-level` | Scope where the value was resolved: `ACCOUNT` \| `ENVIRONMENT` \| `APP` \| `APP_ENVIRONMENT` \| `APP_PROFILE` |
+
+**Example**
+
+```yaml
+- uses: powerimo/github-actions/.github/actions/get-var@main
+  id: cfg
+  with:
+    api-url: https://app.powerimo.cloud/config
+    api-key: ${{ secrets.CONFIG_API_KEY }}
+    var-name: app.db.host
+    env: production
+
+- run: echo "DB host is ${{ steps.cfg.outputs.value }}"
+```
+
+---
+
+### `update-var`
+
+Creates or updates a variable in the Powerimo Config service. Supports all variable scopes.
+
+**Inputs**
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `api-url` | yes | — | Base URL of the Config API |
+| `api-key` | yes | — | `X-Api-Key` for authentication |
+| `account-id` | yes | — | Account UUID |
+| `var-name` | yes | — | Variable name |
+| `value` | yes | — | New variable value |
+| `scope` | no | `account` | `account` \| `env` \| `app` \| `app-env` \| `app-profile` |
+| `security-level` | no | `PUBLIC` | `PUBLIC` \| `HIDDEN_BY_DEFAULT` \| `ENCRYPTED` |
+| `create` | no | `false` | Create the variable if it does not exist (account scope only) |
+| `ignore-rv` | no | `false` | Skip optimistic locking revision check (account scope only) |
+| `env-name` | no | — | Environment name (required for `env` and `app-env` scopes) |
+| `app-name` | no | — | Application name (required for `app`, `app-env`, `app-profile` scopes) |
+| `profile-name` | no | — | Profile name (required for `app-profile` scope) |
+
+**Example — update an account-level variable (create if missing)**
+
+```yaml
+- uses: powerimo/github-actions/.github/actions/update-var@main
+  with:
+    api-url: https://app.powerimo.cloud/config
+    api-key: ${{ secrets.CONFIG_API_KEY }}
+    account-id: ${{ secrets.CONFIG_ACCOUNT_ID }}
+    var-name: deploy.version
+    value: ${{ github.sha }}
+    create: "true"
+```
+
+**Example — update an app-environment variable**
+
+```yaml
+- uses: powerimo/github-actions/.github/actions/update-var@main
+  with:
+    api-url: https://app.powerimo.cloud/config
+    api-key: ${{ secrets.CONFIG_API_KEY }}
+    account-id: ${{ secrets.CONFIG_ACCOUNT_ID }}
+    scope: app-env
+    app-name: my-service
+    env-name: production
+    var-name: app.db.host
+    value: db.prod.internal
 ```
 
 ---
