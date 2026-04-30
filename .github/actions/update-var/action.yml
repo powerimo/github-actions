@@ -114,11 +114,33 @@ runs:
           } + (if $description != "" then {"description": $description} else {} end)')
 
         TMPFILE=$(mktemp)
+        set +e
         HTTP_CODE=$(curl -s -o "$TMPFILE" -w "%{http_code}" -X POST \
           -H "X-Api-Key: ${API_KEY}" \
           -H "Content-Type: application/json" \
           -d "${BODY}" \
           "${URL}")
+        CURL_EXIT=$?
+        set -e
+
+        if [ "${CURL_EXIT}" -ne 0 ]; then
+          case "${CURL_EXIT}" in
+            6)  MSG="Could not resolve host" ;;
+            7)  MSG="Failed to connect to host" ;;
+            28) MSG="Operation timed out" ;;
+            35) MSG="SSL connect error" ;;
+            51) MSG="SSL certificate verification failed (peer cert not OK)" ;;
+            52) MSG="Empty reply from server" ;;
+            56) MSG="Failure receiving network data" ;;
+            60) MSG="SSL certificate problem: cannot verify from trusted CA" ;;
+            77) MSG="Problem reading SSL CA certificate" ;;
+            *)  MSG="Request failed" ;;
+          esac
+          echo "::error::curl exited with code ${CURL_EXIT}: ${MSG}"
+          rm -f "$TMPFILE"
+          exit 1
+        fi
+
         RESPONSE=$(cat "$TMPFILE")
         rm -f "$TMPFILE"
 
